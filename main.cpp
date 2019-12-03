@@ -5,12 +5,16 @@
 using namespace std;
 using namespace std::chrono;
 
-const int N = 1e2;
+const int N = 16;
+const int M = (1<<N);
 const int INF = 1e9;
 long long sum_of_tours=0;
 long long factorial[20];
 
-int BruteforceTSP(int grid[][N], int& n)
+int n;
+int grid[N][N];
+
+int BruteforceTSP()
 {
     int u = 0;
     vector<int> vertex;
@@ -40,7 +44,7 @@ int BruteforceTSP(int grid[][N], int& n)
     return min_path;
 }
 
-int greedyTSPsolve(int grid[][N], const int& n, const int& start, int u, int cnt)
+int greedyTSPsolve(const int& start, int u, int cnt)
 {
     static bool visited[N];
     if(cnt==n)
@@ -57,25 +61,57 @@ int greedyTSPsolve(int grid[][N], const int& n, const int& start, int u, int cnt
         if(grid[u][v] < mn_weight && visited[v] == 0)
             mn_idx = v, mn_weight = grid[u][v];
 
-    return greedyTSPsolve(grid, n, start, mn_idx, ++cnt) + grid[u][mn_idx];
+    return greedyTSPsolve(start, mn_idx, ++cnt) + grid[u][mn_idx];
 }
 
 
-int greedyTSP(int grid[][N], int& n)
+int greedyTSP()
 {
     int start = 0;
-    int greedy_ans = greedyTSPsolve(grid,n,start,0,0);
+    int greedy_ans = greedyTSPsolve(start,0,0);
 
     for(int i=1;i<n;i++)
     {
         start = i;
-        greedy_ans = min(greedy_ans,greedyTSPsolve(grid,n,start,i,0));
+        greedy_ans = min(greedy_ans,greedyTSPsolve(start,i,0));
     }
 
     return greedy_ans;
 }
 
-void RunSolution(int grid[][N], int& n)
+int dp[100000][N+1];
+int VISITED_ALL = (1<<n) -1;
+
+int DP_TSP_solve(int mask, int pos)
+{
+	if(mask==((1<<n) -1)){
+		return grid[pos][0];
+	}
+	if(dp[mask][pos]!=-1){
+	   return dp[mask][pos];
+	}
+
+	//Now from current node, we will try to go to every other node and take the min ans
+	int ans = INF;
+
+	//Visit all the unvisited cities and take the best route
+	for(int city=0;city<n;city++){
+		if((mask&(1<<city))==0){
+
+			int newAns = grid[pos][city] + DP_TSP_solve(mask|(1<<city), city);
+			ans = min(ans, newAns);
+		}
+	}
+	return dp[mask][pos] = ans;
+}
+
+int DP_TSP()
+{
+    memset(dp,-1,sizeof dp);
+    return DP_TSP_solve(1,0);
+}
+
+void RunSolution()
 {
 	//Intialize the needed vairables to benchmark
 	high_resolution_clock::time_point start;
@@ -87,7 +123,7 @@ void RunSolution(int grid[][N], int& n)
 	/* Benchmarking greedyTSP */
 
 	start = high_resolution_clock::now();
-    int greedyAns = greedyTSP(grid,n);
+    int greedyAns = greedyTSP();
 	end = high_resolution_clock::now();
 	TimeElapsed = duration_cast<duration<double>>(end - start);
     cout << "The greedy approach to the TSP graph is: " << greedyAns
@@ -96,11 +132,21 @@ void RunSolution(int grid[][N], int& n)
     /* Benchmarking BruteforceTSP */
 
     start = high_resolution_clock::now();
-    int BruteforceAns = BruteforceTSP(grid,n);
+    int BruteforceAns = BruteforceTSP();
 	end = high_resolution_clock::now();
 	TimeElapsed = duration_cast<duration<double>>(end - start);
     cout << "The bruteforce approach to the TSP graph is: " << BruteforceAns
     << " and it took " << fixed << TimeElapsed.count() << " seconds" << endl;
+
+    /* Benchmarking DynamicProgramming Solution*/
+
+    start = high_resolution_clock::now();
+    int DPans = DP_TSP();
+	end = high_resolution_clock::now();
+	TimeElapsed = duration_cast<duration<double>>(end - start);
+    cout << "The dynamic programming approach to the TSP graph is: " << DPans
+    << " and it took " << fixed << TimeElapsed.count() << " seconds" << endl;
+
     cout.precision(1);
     return;
 }
@@ -108,8 +154,7 @@ void RunSolution(int grid[][N], int& n)
 int main()
 {
     freopen("input.in", "r", stdin);
-    int n;
-    int grid[N][N];
+
     factorial[1] = 1;
     for(int i=2;i<20;i++)
         factorial[i] = factorial[i-1] * i;
@@ -123,7 +168,7 @@ int main()
             for(int j=0;j<n;j++)
                 cin >> grid[i][j];
 
-        RunSolution(grid,n);
+        RunSolution();
 
         cout << "The average tour of the TSP graph is: " << (double)sum_of_tours/factorial[n-1] << endl << endl;
     }
